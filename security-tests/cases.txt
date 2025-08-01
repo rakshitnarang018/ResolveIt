@@ -1,0 +1,79 @@
+# ResolveIt - Manual Security Test Cases
+
+This document outlines manual tests to perform to ensure the security and integrity of the ResolveIt application.
+
+---
+
+### 1. Authentication & Authorization
+
+- **[ ] Test Case: Access Admin Dashboard as Normal User**
+  - **Steps:**
+    1. Log in as a normal user (role: USER).
+    2. Obtain the user's JWT.
+    3. Attempt to access `GET /api/admin/cases` or `GET /api/admin/stats` with the user's JWT.
+    4. Attempt to navigate to `/admin/dashboard` on the frontend.
+  - **Expected Result:** API should return a 403 Forbidden error. Frontend should redirect to the user dashboard or show an "Access Denied" message.
+
+- **[ ] Test Case: Access Another User's Case**
+  - **Steps:**
+    1. Register two users, User A and User B.
+    2. User A registers a case (e.g., case ID 1).
+    3. Log in as User B and obtain their JWT.
+    4. Attempt to access `GET /api/cases/1` with User B's token.
+  - **Expected Result:** API should return a 403 Forbidden error.
+
+- **[ ] Test Case: JWT Tampering**
+  - **Steps:**
+    1. Log in as a normal user and get the JWT.
+    2. Decode the JWT payload.
+    3. Modify the `role` field from `USER` to `ADMIN`.
+    4. Re-sign the token (this is difficult without the secret, but test with a known weak secret if applicable).
+    5. Attempt to use the tampered token to access admin routes.
+  - **Expected Result:** API should return a 401 Unauthorized (Invalid Signature) error.
+
+---
+
+### 2. Input Validation & Injection
+
+- **[ ] Test Case: SQL Injection (via ORM)**
+  - **Steps:**
+    1. In the login form, enter an email like `' OR 1=1; --`.
+    2. In the case registration form, use similar SQL injection payloads in text fields.
+  - **Expected Result:** The application should not crash or return a database error. Login should fail. Prisma ORM should prevent this by parameterizing queries.
+
+- **[ ] Test Case: Cross-Site Scripting (XSS)**
+  - **Steps:**
+    1. In the case description field, enter a script payload like `<script>alert('XSS')</script>`.
+    2. Submit the case.
+    3. View the case details page.
+  - **Expected Result:** The script should NOT execute. The text `<script>alert('XSS')</script>` should be rendered as plain text on the screen. React's default JSX escaping should prevent this.
+
+- **[ ] Test Case: Parameter Pollution**
+  - **Steps:**
+    1. Construct a URL to an admin endpoint like `/api/admin/cases?status=RESOLVED&status=PENDING`.
+  - **Expected Result:** The backend should handle this gracefully, either by using the first parameter or the last one, without crashing. The Express framework typically handles this by creating an array of values.
+
+---
+
+### 3. File Upload Vulnerabilities
+
+- **[ ] Test Case: Upload Malicious File Type**
+  - **Steps:**
+    1. Rename an executable file (e.g., `virus.exe`) to have an allowed extension (e.g., `virus.png`).
+    2. Attempt to upload this file as evidence.
+  - **Expected Result:** The upload should be rejected by the server-side MIME type check in `multer`.
+
+- **[ ] Test Case: Upload Oversized File**
+  - **Steps:**
+    1. Attempt to upload a file larger than the configured limit (e.g., 25 MB).
+  - **Expected Result:** The request should fail with a specific error message indicating the file is too large.
+
+---
+
+### 4. Spoofing Attacks
+
+- **[ ] Test Case: Spoofing Opposite Party Response**
+  - **Steps:**
+    1. Identify a case ID.
+    2. As an unauthorized third party (without a valid JWT), attempt to call `POST /api/cases/:id/submit-opposite-response`.
+  - **Expected Result:** The API should return a 401 Unauthorized error because the route is protected.
