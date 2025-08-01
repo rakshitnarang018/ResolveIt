@@ -1,0 +1,149 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Defines the database connection and provider.
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// Defines the Prisma client generator.
+generator client {
+  provider = "prisma-client-js"
+}
+
+// --- ENUMS ---
+
+enum Role {
+  USER
+  ADMIN
+}
+
+enum CaseType {
+  FAMILY
+  BUSINESS
+  CRIMINAL
+  COMMUNITY
+  OTHER
+}
+
+enum CaseStatus {
+  REGISTERED
+  AWAITING_RESPONSE
+  ACCEPTED
+  REJECTED
+  PANEL_CREATED
+  MEDIATION_IN_PROGRESS
+  RESOLVED
+  UNRESOLVED
+}
+
+enum FileType {
+  IMAGE
+  VIDEO
+  AUDIO
+  DOCUMENT
+}
+
+enum PanelMemberType {
+  LAWYER
+  SCHOLAR
+  CIVIL
+}
+
+
+// --- MODELS ---
+
+// User Model: Represents both regular users and administrators.
+model User {
+  id             Int      @id @default(autoincrement())
+  name           String
+  email          String   @unique
+  password       String
+  phone          String?
+  age            Int?
+  gender         String?
+  photo_url      String?
+  address_street String?
+  address_city   String?
+  address_zip    String?
+  role           Role     @default(USER)
+  created_at     DateTime @default(now())
+  
+  cases          Case[] // A user can have many cases.
+}
+
+// Case Model: The central model for a dispute.
+model Case {
+  id                  Int      @id @default(autoincrement())
+  user_id             Int
+  case_type           CaseType
+  description         String   @db.Text
+  is_pending_in_court Boolean  @default(false)
+  case_number         String?
+  institution_name    String?
+  status              CaseStatus @default(REGISTERED)
+  created_at          DateTime @default(now())
+  updated_at          DateTime @updatedAt
+
+  // Relations
+  user                User          @relation(fields: [user_id], references: [id])
+  opposite_parties    OppositeParty[]
+  evidence            Evidence[]
+  panel_members       PanelMember[]
+  witnesses           Witness[]
+}
+
+// OppositeParty Model: Represents the other party in a case.
+model OppositeParty {
+  id                Int       @id @default(autoincrement())
+  case_id           Int
+  name              String
+  email             String?
+  phone             String?
+  address           String?
+  notified          Boolean   @default(false)
+  agreed_to_mediate Boolean?
+  responded_at      DateTime?
+
+  // Relation
+  case              Case      @relation(fields: [case_id], references: [id], onDelete: Cascade)
+}
+
+// Evidence Model: Represents uploaded files for a case.
+model Evidence {
+  id          Int      @id @default(autoincrement())
+  case_id     Int
+  file_type   FileType
+  file_url    String
+  uploaded_at DateTime @default(now())
+
+  // Relation
+  case        Case     @relation(fields: [case_id], references: [id], onDelete: Cascade)
+}
+
+// PanelMember Model: Represents a member of the mediation panel.
+model PanelMember {
+  id        Int             @id @default(autoincrement())
+  case_id   Int
+  name      String
+  type      PanelMemberType
+  email     String?
+  joined_at DateTime        @default(now())
+
+  // Relation
+  case      Case            @relation(fields: [case_id], references: [id], onDelete: Cascade)
+}
+
+// Witness Model: Represents a witness for a case.
+model Witness {
+  id           Int    @id @default(autoincrement())
+  case_id      Int
+  name         String
+  email        String?
+  phone        String?
+  nominated_by String // "user" or "opposite"
+
+  // Relation
+  case         Case   @relation(fields: [case_id], references: [id], onDelete: Cascade)
+}
