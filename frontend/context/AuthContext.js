@@ -75,9 +75,20 @@ export const AuthProvider = ({ children }) => {
             toast.success('Registration successful!');
             router.push('/dashboard');
         } catch (error) {
-            const message = error.response?.data?.message || 'Registration failed.';
+            // --- ERROR HANDLING FIX ---
+            // The backend sends an `errors` array for validation failures.
+            // We now check for that array first to give a specific message.
+            let message = 'Registration failed. Please try again.';
+            if (error.response?.data?.errors) {
+                // Display the first validation error message
+                message = error.response.data.errors[0].msg;
+            } else if (error.response?.data?.message) {
+                // Fallback to a general message if one exists
+                message = error.response.data.message;
+            }
+            
             toast.error(message);
-            console.error("Registration error:", error);
+            console.error("Registration error:", error.response?.data || error.message);
         }
     };
     

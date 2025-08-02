@@ -3,6 +3,7 @@ import { Toaster } from 'react-hot-toast'
 import { AuthProvider } from '@/context/AuthContext'
 import Layout from '@/components/Layout'
 
+
 export default function App({ Component, pageProps }) {
   return (
     // AuthProvider makes authentication state available to all components
